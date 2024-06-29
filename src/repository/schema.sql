@@ -4,8 +4,6 @@ CREATE TABLE users (
     passport_number INTEGER NOT NULL,
     surname VARCHAR(255),
     name VARCHAR(255),
-    patronymic VARCHAR(255),
-    address VARCHAR(255)
 );
 
 CREATE TABLE tasks (
