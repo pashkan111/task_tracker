@@ -3,32 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"task_tracker/src/api"
 	"task_tracker/src/repository"
+	"task_tracker/src/utils"
 	"time"
-
-	"github.com/sirupsen/logrus"
 
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
-func GetLogger() *logrus.Logger {
-	log := logrus.New()
-	log.SetFormatter(&logrus.JSONFormatter{})
-
-	log.SetOutput(os.Stdout)
-
-	log.SetLevel(logrus.InfoLevel)
-	return log
-}
-
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	log := GetLogger()
+	log := utils.GetLogger()
 	postgres_pool := repository.GetPostgresPool(ctx, log)
 
 	router := mux.NewRouter()

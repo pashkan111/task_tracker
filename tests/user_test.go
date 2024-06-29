@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRegisterUserHandler(t *testing.T) {
+func TestRegisterUserHandler__OK(t *testing.T) {
 	pool, cleanup, err := SetupTestDB()
 	require.NoError(t, err)
 	defer cleanup()
@@ -74,4 +74,86 @@ func TestRegisterUserHandler(t *testing.T) {
 
 	assert.Equal(t, name, userFromDB.Name)
 	assert.Equal(t, passport_number, userFromDB.PassportNumber)
+}
+
+func TestRegisterUserHandler__ValidationError__NoPassportData(t *testing.T) {
+	pool, cleanup, err := SetupTestDB()
+	require.NoError(t, err)
+	defer cleanup()
+
+	log := SetupLogger()
+
+	router := mux.NewRouter()
+	api.InitUserRoutes(router, pool, log)
+
+	name := "Ivan"
+	surname := "Petrov"
+
+	user := entities.UserCreateRequest{
+		Name:    name,
+		Surname: surname,
+	}
+	body, _ := json.Marshal(user)
+
+	req, err := http.NewRequest("POST", "/users", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var response entities.ErrorResponse
+	err = json.NewDecoder(rr.Body).Decode(&response)
+	require.NoError(t, err)
+
+	var count int
+	pool.QueryRow(
+		context.Background(),
+		"SELECT count(*) FROM users",
+	).Scan(&count)
+	assert.Equal(t, 0, count)
+}
+
+func TestRegisterUserHandler__ValidationError__WrongPassportData(t *testing.T) {
+	pool, cleanup, err := SetupTestDB()
+	require.NoError(t, err)
+	defer cleanup()
+
+	log := SetupLogger()
+
+	router := mux.NewRouter()
+	api.InitUserRoutes(router, pool, log)
+
+	name := "Ivan"
+	surname := "Petrov"
+	passport_data := "12133539"
+
+	user := entities.UserCreateRequest{
+		Name:           name,
+		Surname:        surname,
+		PassportNumber: passport_data,
+	}
+	body, _ := json.Marshal(user)
+
+	req, err := http.NewRequest("POST", "/users", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var response entities.ErrorResponse
+	err = json.NewDecoder(rr.Body).Decode(&response)
+	require.NoError(t, err)
+
+	var count int
+	pool.QueryRow(
+		context.Background(),
+		"SELECT count(*) FROM users",
+	).Scan(&count)
+	assert.Equal(t, 0, count)
 }

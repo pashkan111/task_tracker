@@ -9,7 +9,7 @@ type User struct {
 }
 
 type UserCreateRequest struct {
-	PassportNumber string `json:"passportNumber"`
+	PassportNumber string `json:"passportNumber" validate:"required"`
 	Name           string `json:"name"`
 	Surname        string `json:"surname"`
 }

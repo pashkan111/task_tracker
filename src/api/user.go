@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"task_tracker/src/entities"
 	"task_tracker/src/services"
+	"task_tracker/src/utils"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,10 +23,15 @@ func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 
 		var user entities.UserCreateRequest
 		decoder := json.NewDecoder(r.Body)
-		err := decoder.Decode(&user)
-
-		if err != nil {
+		if err := decoder.Decode(&user); err != nil {
 			resp := entities.ErrorResponse{Error: err.Error()}
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		if err := utils.ValidateData(&user); err != nil {
+			resp := entities.ErrorResponse{Error: fmt.Sprintf("Validation error. %s", err.Error())}
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(resp)
 			return
