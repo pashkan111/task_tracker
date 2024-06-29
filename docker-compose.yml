@@ -13,3 +13,15 @@ services:
     ports:
       - ${PG_PORT}:5432
   
+  db_test:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: ${TEST_PG_USER}
+      POSTGRES_PASSWORD: ${TEST_PG_PASSWORD}
+      POSTGRES_DB: ${TEST_PG_DATABASE}
+    volumes:
+      - ./volumes/postgresql/pg-data-test:/var/lib/postgresql/data
+      - ./src/repository/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - ${TEST_PG_PORT}:5432
+  
