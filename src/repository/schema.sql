@@ -3,7 +3,9 @@ CREATE TABLE users (
     passport_serie INTEGER NOT NULL,
     passport_number INTEGER NOT NULL,
     surname VARCHAR(255),
-    name VARCHAR(255)
+    name VARCHAR(255),
+
+    UNIQUE (passport_serie, passport_number)
 );
 
 CREATE TABLE tasks (

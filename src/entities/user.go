@@ -16,8 +16,23 @@ type UserCreateRequest struct {
 
 type UserCreateResponse struct {
 	Id             int    `json:"id"`
-	PassportSerie  int    `json:"passport_serie"`
-	PassportNumber int    `json:"passport_number"`
+	PassportSerie  int    `json:"passportSerie"`
+	PassportNumber int    `json:"passportNumber"`
+	Surname        string `json:"surname"`
+	Name           string `json:"name"`
+}
+
+type UserUpdateRequest struct {
+	PassportSerie  int    `json:"passportSerie"`
+	PassportNumber int    `json:"passportNumber"`
+	Surname        string `json:"surname"`
+	Name           string `json:"name"`
+}
+
+type UserUpdateResponse struct {
+	Id             int    `json:"id"`
+	PassportSerie  int    `json:"passportSerie"`
+	PassportNumber int    `json:"passportNumber"`
 	Surname        string `json:"surname"`
 	Name           string `json:"name"`
 }

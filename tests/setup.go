@@ -7,7 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v4/pgxpool"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -53,7 +54,7 @@ func SetupTestDB() (*pgxpool.Pool, func(), error) {
 		return nil, nil, fmt.Errorf("unable to parse database config: %s", err.Error())
 	}
 
-	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to database: %s", err.Error())
 	}

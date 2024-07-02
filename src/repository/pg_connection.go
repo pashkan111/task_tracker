@@ -6,7 +6,7 @@ import (
 
 	"context"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
@@ -27,9 +27,14 @@ func GetPostgresPool(ctx context.Context, log *logrus.Logger) *pgxpool.Pool {
 		log.Error("Error with parsing config", err)
 	}
 
-	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
 	if err != nil {
-		log.Error("Error with connecting to DB", err)
+		log.Fatal("Error with connecting to DB", err)
 	}
+
+	if err := pool.Ping(ctx); err != nil {
+		log.Fatal("Error with connecting DB", err)
+	}
+
 	return pool
 }
