@@ -23,10 +23,16 @@ type UserCreateResponse struct {
 }
 
 type UserUpdateRequest struct {
-	PassportSerie  int    `json:"passportSerie"`
-	PassportNumber int    `json:"passportNumber"`
-	Surname        string `json:"surname"`
-	Name           string `json:"name"`
+	PassportNumber *string `json:"passportNumber"`
+	Surname        *string `json:"surname"`
+	Name           *string `json:"name"`
+}
+
+type UserUpdateRepo struct {
+	PassportSerie  *int
+	PassportNumber *int
+	Surname        *string
+	Name           *string
 }
 
 type UserUpdateResponse struct {

@@ -2,14 +2,11 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"task_tracker/src/entities"
 	"task_tracker/src/services"
 	"task_tracker/src/utils"
-
-	"github.com/go-playground/validator/v10"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -19,7 +16,7 @@ import (
 
 func InitUserRoutes(router *mux.Router, pool *pgxpool.Pool, log *logrus.Logger) {
 	router.HandleFunc("/users", CreateUser(pool, log)).Methods("POST")
-	router.HandleFunc("/users/{userId}", UpdateUser(pool, log)).Methods("PUT")
+	router.HandleFunc("/users/{userId}", UpdateUser(pool, log)).Methods("PATCH")
 }
 
 func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
@@ -27,29 +24,15 @@ func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		var user entities.UserCreateRequest
-		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(&user); err != nil {
+		user_data_validated, err := utils.ValidateRequestData(user, r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
 			resp := entities.ErrorResponse{Error: err.Error()}
-			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(resp)
 			return
 		}
 
-		if err := utils.ValidateData(&user); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-
-			for _, err := range err.(validator.ValidationErrors) {
-				fieldError := fmt.Sprintf("Validation failed on field '%s', condition: '%s'", err.Field(), err.Tag())
-				json.NewEncoder(w).Encode(entities.ErrorResponse{Error: fieldError})
-				return
-			}
-
-			resp := entities.ErrorResponse{Error: fmt.Sprintf("Validation error. %s", err.Error())}
-			json.NewEncoder(w).Encode(resp)
-			return
-		}
-
-		created_user, err := services.CreateUser(r.Context(), pool, log, user)
+		created_user, err := services.CreateUser(r.Context(), pool, log, *user_data_validated)
 		if err != nil {
 			resp := entities.ErrorResponse{Error: err.Error()}
 			w.WriteHeader(http.StatusBadRequest)
@@ -83,16 +66,16 @@ func UpdateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 			return
 		}
 
-		var user entities.UserUpdateRequest
-		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(&user); err != nil {
-			resp := entities.ErrorResponse{Error: err.Error()}
+		validated_user_data, err_parse := utils.ValidateRequestData(entities.UserUpdateRequest{}, r.Body)
+
+		if err_parse != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			resp := entities.ErrorResponse{Error: err_parse.Error()}
 			json.NewEncoder(w).Encode(resp)
 			return
 		}
 
-		updated_user, err := services.UpdateUser(r.Context(), pool, log, user, user_id)
+		updated_user, err := services.UpdateUser(r.Context(), pool, log, *validated_user_data, user_id)
 		if err != nil {
 			resp := entities.ErrorResponse{Error: err.Error()}
 			w.WriteHeader(http.StatusBadRequest)

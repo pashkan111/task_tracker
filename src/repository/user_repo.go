@@ -2,10 +2,13 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"task_tracker/src/entities"
 	"task_tracker/src/errors/repo_errors"
 
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx"
 
 	"errors"
 
@@ -43,7 +46,7 @@ func CreateUser(
 				return 0, repo_errors.ObjectAlreadyExistsError{}
 			}
 		} else {
-			log.Error("Error creating user:", err_create)
+			log.Error("Error creating user: ", err_create)
 			return 0, repo_errors.OperationError{}
 		}
 	}
@@ -54,27 +57,86 @@ func UpdateUser(
 	ctx context.Context,
 	pool *pgxpool.Pool,
 	log *logrus.Logger,
-	user entities.User,
+	user entities.UserUpdateRepo,
 	user_id int,
-) error {
+) (entities.User, error) {
 	conn, err := pool.Acquire(ctx)
-
 	if err != nil {
 		log.Error("Error with acquiring connection:", err)
-		return err
+		return entities.User{}, err
 	}
 	defer conn.Release()
 
-	_, err_exec := conn.Exec(
-		ctx,
+	set_clauses := []string{}
+	args := []interface{}{}
+	argID := 1
+
+	if user.PassportSerie != nil {
+		set_clauses = append(set_clauses, fmt.Sprintf("passport_serie=$%d", argID))
+		args = append(args, *user.PassportSerie)
+		argID++
+	}
+	if user.PassportNumber != nil {
+		set_clauses = append(set_clauses, fmt.Sprintf("passport_number=$%d", argID))
+		args = append(args, *user.PassportNumber)
+		argID++
+	}
+	if user.Surname != nil {
+		set_clauses = append(set_clauses, fmt.Sprintf("surname=$%d", argID))
+		args = append(args, *user.Surname)
+		argID++
+	}
+	if user.Name != nil {
+		set_clauses = append(set_clauses, fmt.Sprintf("name=$%d", argID))
+		args = append(args, *user.Name)
+		argID++
+	}
+
+	if len(set_clauses) == 0 {
+		return entities.User{}, fmt.Errorf("No fields to update")
+	}
+
+	set_query := strings.Join(set_clauses, ", ")
+	query := fmt.Sprintf(
 		`UPDATE users 
-		SET passport_serie=$1, passport_number=$2, surname=$3, name=$4 
-		WHERE user_id=$5
-		RETURNING user_id
-		`,
-		user.PassportSerie, user.PassportNumber, user.Surname, user.Name, user_id,
+		SET %s 
+		WHERE user_id=$%d 
+		RETURNING user_id, passport_serie, passport_number, surname, name;`,
+		set_query,
+		argID,
 	)
-	return err_exec
+	args = append(args, user_id)
+
+	var updated_user entities.User
+	err = conn.QueryRow(ctx, query, args...).Scan(
+		&updated_user.Id,
+		&updated_user.PassportSerie,
+		&updated_user.PassportNumber,
+		&updated_user.Surname,
+		&updated_user.Name,
+	)
+
+	if err != nil {
+		var pg_err *pgconn.PgError
+
+		if errors.As(err, &pg_err) {
+			if pg_err.Code == "23505" {
+				log.Errorf("error: %s. Detail: %s", pg_err.Error(), pg_err.Detail)
+				return entities.User{}, repo_errors.ObjectAlreadyExistsError{}
+			}
+		} else if err.Error() == pgx.ErrNoRows.Error() {
+			log.Errorf("error: %s. Detail: %s=%d", err.Error(), "user_id", user_id)
+			return entities.User{}, repo_errors.ObjectNotFoundError{}
+		} else {
+			log.Errorf("Error updating user: %s", err)
+			return entities.User{}, repo_errors.OperationError{}
+		}
+	}
+
+	if updated_user.Id == 0 {
+		return entities.User{}, repo_errors.ObjectNotFoundError{}
+	}
+	return updated_user, nil
 }
 
 func DeleteUser(

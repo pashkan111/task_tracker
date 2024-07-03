@@ -107,7 +107,7 @@ func TestCreateUserHandler__ValidationError__NoPassportData(t *testing.T) {
 	var response entities.ErrorResponse
 	err = json.NewDecoder(rr.Body).Decode(&response)
 	require.NoError(t, err)
-	assert.Equal(t, entities.ErrorResponse{Error: "Validation failed on field 'PassportNumber', condition: 'required'"}, response)
+	assert.Equal(t, entities.ErrorResponse{Error: "Bad Request: Validation failed on field 'PassportNumber', condition: 'required'"}, response)
 
 	var count int
 	pool.QueryRow(

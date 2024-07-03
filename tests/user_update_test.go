@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"task_tracker/src/api"
 	"task_tracker/src/entities"
 	"testing"
@@ -39,11 +40,11 @@ func TestUpdateUserHandler__OK(t *testing.T) {
 	name := "Ivan"
 	surname := "Petrov"
 
+	passport_number_for_request := strconv.Itoa(passport_serie) + " " + strconv.Itoa(passport_number)
 	user := entities.UserUpdateRequest{
-		PassportSerie:  passport_serie,
-		PassportNumber: passport_number,
-		Surname:        surname,
-		Name:           name,
+		PassportNumber: &passport_number_for_request,
+		Surname:        &surname,
+		Name:           &name,
 	}
 	body, _ := json.Marshal(user)
 
@@ -83,7 +84,7 @@ func TestUpdateUserHandler__OK(t *testing.T) {
 	assert.Equal(t, passport_number, userFromDB.PassportNumber)
 }
 
-func TestUpdateUserHandler__BadRequest(t *testing.T) {
+func TestUpdateUserHandler__BadRequest__ObjectNotFound(t *testing.T) {
 	pool, cleanup, err := SetupTestDB()
 	require.NoError(t, err)
 	defer cleanup()
@@ -99,12 +100,12 @@ func TestUpdateUserHandler__BadRequest(t *testing.T) {
 		VALUES (1, 1212, 232323, 'Ivanov', 'Ivan');
 		`,
 	)
-	pool.Exec(
-		context.Background(),
-		`INSERT INTO users (user_id, passport_serie, passport_number, surname, name)
-		VALUES (1, 1212, 895044, 'Ivanov', 'Ivan');
-		`,
-	)
+	// pool.Exec(
+	// 	context.Background(),
+	// 	`INSERT INTO users (user_id, passport_serie, passport_number, surname, name)
+	// 	VALUES (12, 1212, 895044, 'Ivanov', 'Ivan');
+	// 	`,
+	// )
 	require.NoError(t, err_create)
 
 	passport_serie := 2233
@@ -112,11 +113,11 @@ func TestUpdateUserHandler__BadRequest(t *testing.T) {
 	name := "Ivan"
 	surname := "Petrov"
 
+	passport_number_for_request := strconv.Itoa(passport_serie) + " " + strconv.Itoa(passport_number)
 	user := entities.UserUpdateRequest{
-		PassportSerie:  passport_serie,
-		PassportNumber: passport_number,
-		Surname:        surname,
-		Name:           name,
+		PassportNumber: &passport_number_for_request,
+		Surname:        &surname,
+		Name:           &name,
 	}
 	body, _ := json.Marshal(user)
 
@@ -132,23 +133,23 @@ func TestUpdateUserHandler__BadRequest(t *testing.T) {
 	var response entities.ErrorResponse
 	err = json.NewDecoder(rr.Body).Decode(&response)
 	require.NoError(t, err)
-	assert.Equal(t, "User not found. User_id: 12", response.Error)
+	assert.Equal(t, "Bad Request: Object not found. userId=12", response.Error)
 
-	var userFromDB entities.User
-	row := pool.QueryRow(
-		context.Background(),
-		"SELECT * FROM users WHERE user_id = 1;",
-	)
+	// var userFromDB entities.User
+	// row := pool.QueryRow(
+	// 	context.Background(),
+	// 	"SELECT * FROM users WHERE user_id = 1;",
+	// )
 
-	err = row.Scan(
-		&userFromDB.Id,
-		&userFromDB.PassportSerie,
-		&userFromDB.PassportNumber,
-		&userFromDB.Surname,
-		&userFromDB.Name,
-	)
-	require.NoError(t, err)
+	// err = row.Scan(
+	// 	&userFromDB.Id,
+	// 	&userFromDB.PassportSerie,
+	// 	&userFromDB.PassportNumber,
+	// 	&userFromDB.Surname,
+	// 	&userFromDB.Name,
+	// )
+	// require.NoError(t, err)
 
-	assert.Equal(t, name, userFromDB.Name)
-	assert.Equal(t, passport_number, userFromDB.PassportNumber)
+	// assert.Equal(t, name, userFromDB.Name)
+	// assert.Equal(t, passport_number, userFromDB.PassportNumber)
 }

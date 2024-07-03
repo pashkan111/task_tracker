@@ -1,20 +1,15 @@
 package repo_errors
 
-import "fmt"
-
 type OperationError struct{}
 
 func (e OperationError) Error() string {
 	return "Error while performing operation"
 }
 
-type ObjectNotFoundError struct {
-	ParamName string
-	Value     interface{}
-}
+type ObjectNotFoundError struct{}
 
 func (e ObjectNotFoundError) Error() string {
-	return fmt.Sprintf("Object not found. %s: %v", e.ParamName, e.Value)
+	return "Object not found"
 }
 
 type ObjectAlreadyExistsError struct{}
