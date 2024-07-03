@@ -97,6 +97,19 @@ func UpdateUser(
 	return updated_user, nil
 }
 
+func DeleteUser(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	log *logrus.Logger,
+	user_id int,
+) error {
+	err := repository.DeleteUser(ctx, pool, log, user_id)
+	if err != nil {
+		return api_errors.InternalServerError{}
+	}
+	return nil
+}
+
 func getPassportDataFromString(passport_number_string string) ([]*int, error) {
 	passport_data := strings.Split(passport_number_string, " ")
 	if len(passport_data) < 2 {

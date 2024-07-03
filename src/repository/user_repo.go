@@ -161,9 +161,10 @@ func DeleteUser(
 	)
 	if err != nil {
 		log.Error("Error deleting user:", err)
+		return repo_errors.OperationError{}
 	}
 
-	return err
+	return nil
 }
 
 func GetUsers(

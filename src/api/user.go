@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"task_tracker/src/entities"
+	"task_tracker/src/errors/api_errors"
 	"task_tracker/src/services"
 	"task_tracker/src/utils"
 
@@ -17,6 +19,7 @@ import (
 func InitUserRoutes(router *mux.Router, pool *pgxpool.Pool, log *logrus.Logger) {
 	router.HandleFunc("/users", CreateUser(pool, log)).Methods("POST")
 	router.HandleFunc("/users/{userId}", UpdateUser(pool, log)).Methods("PATCH")
+	router.HandleFunc("/users/{userId}", DeleteUser(pool, log)).Methods("DELETE")
 }
 
 func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
@@ -35,7 +38,11 @@ func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 		created_user, err := services.CreateUser(r.Context(), pool, log, *user_data_validated)
 		if err != nil {
 			resp := entities.ErrorResponse{Error: err.Error()}
-			w.WriteHeader(http.StatusBadRequest)
+			if errors.Is(err, api_errors.BadRequestError{}) {
+				w.WriteHeader(http.StatusBadRequest)
+			} else if errors.Is(err, api_errors.InternalServerError{}) {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 			json.NewEncoder(w).Encode(resp)
 			return
 		}
@@ -78,12 +85,48 @@ func UpdateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 		updated_user, err := services.UpdateUser(r.Context(), pool, log, *validated_user_data, user_id)
 		if err != nil {
 			resp := entities.ErrorResponse{Error: err.Error()}
-			w.WriteHeader(http.StatusBadRequest)
+			if errors.Is(err, api_errors.BadRequestError{}) {
+				w.WriteHeader(http.StatusBadRequest)
+			} else if errors.Is(err, api_errors.InternalServerError{}) {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 			json.NewEncoder(w).Encode(resp)
 			return
 		}
 
 		response := entities.UserUpdateResponse(updated_user)
 		json.NewEncoder(w).Encode(response)
+	}
+}
+
+func DeleteUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		vars := mux.Vars(r)
+		userID := vars["userId"]
+
+		if userID == "" {
+			resp := entities.ErrorResponse{Error: "Parametr userId is required"}
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		user_id, err := strconv.Atoi(userID)
+		if err != nil {
+			resp := entities.ErrorResponse{Error: "Parametr userId must be a number"}
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		err = services.DeleteUser(r.Context(), pool, log, user_id)
+		if err != nil {
+			resp := entities.ErrorResponse{Error: err.Error()}
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
