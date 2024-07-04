@@ -42,3 +42,9 @@ type UserUpdateResponse struct {
 	Surname        string `json:"surname"`
 	Name           string `json:"name"`
 }
+
+type GetUsersResponse struct {
+	Users    []User `json:"users"`
+	Page     int    `json:"page"`
+	LastPage int    `json:"lastPage"`
+}

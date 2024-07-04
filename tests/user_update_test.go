@@ -100,12 +100,6 @@ func TestUpdateUserHandler__BadRequest__ObjectNotFound(t *testing.T) {
 		VALUES (1, 1212, 232323, 'Ivanov', 'Ivan');
 		`,
 	)
-	// pool.Exec(
-	// 	context.Background(),
-	// 	`INSERT INTO users (user_id, passport_serie, passport_number, surname, name)
-	// 	VALUES (12, 1212, 895044, 'Ivanov', 'Ivan');
-	// 	`,
-	// )
 	require.NoError(t, err_create)
 
 	passport_serie := 2233
@@ -134,22 +128,4 @@ func TestUpdateUserHandler__BadRequest__ObjectNotFound(t *testing.T) {
 	err = json.NewDecoder(rr.Body).Decode(&response)
 	require.NoError(t, err)
 	assert.Equal(t, "Bad Request: Object not found. userId=12", response.Error)
-
-	// var userFromDB entities.User
-	// row := pool.QueryRow(
-	// 	context.Background(),
-	// 	"SELECT * FROM users WHERE user_id = 1;",
-	// )
-
-	// err = row.Scan(
-	// 	&userFromDB.Id,
-	// 	&userFromDB.PassportSerie,
-	// 	&userFromDB.PassportNumber,
-	// 	&userFromDB.Surname,
-	// 	&userFromDB.Name,
-	// )
-	// require.NoError(t, err)
-
-	// assert.Equal(t, name, userFromDB.Name)
-	// assert.Equal(t, passport_number, userFromDB.PassportNumber)
 }

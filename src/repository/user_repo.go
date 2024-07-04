@@ -173,40 +173,52 @@ func GetUsers(
 	log *logrus.Logger,
 	offset int,
 	limit int,
-) ([]entities.User, error) {
+) ([]entities.User, int, error) {
 	conn, err := pool.Acquire(ctx)
 
 	var users []entities.User
 	if err != nil {
 		log.Error("Error with acquiring connection:", err)
-		return users, err
+		return users, 0, err
 	}
 	defer conn.Release()
 
 	rows, err := conn.Query(
 		ctx,
-		`SELECT user_id, passport_serie, passport_number, surname, name 
-		FROM users
-		LIMIT $1
-		OFFSET $2;
-		`,
+		`SELECT user_id, passport_serie, passport_number, surname, name, total_count
+		FROM (
+    		SELECT user_id, passport_serie, passport_number, surname, name,
+           	COUNT(*) OVER () AS total_count
+    		FROM users
+    		ORDER BY user_id
+    		LIMIT $1
+    		OFFSET $2
+		) sub;`,
 		limit, offset,
 	)
 	if err != nil {
-		log.Error("Error selecting users:", err)
-		return users, err
+		log.Error("Error getting users:", err)
+		return users, 0, repo_errors.OperationError{}
 	}
 	defer rows.Close()
 
+	var users_count int
 	for rows.Next() {
 		var user entities.User
-		err = rows.Scan(&user.Id, &user.PassportSerie, &user.PassportNumber, &user.Surname, &user.Name)
+		err = rows.Scan(
+			&user.Id,
+			&user.PassportSerie,
+			&user.PassportNumber,
+			&user.Surname,
+			&user.Name,
+			&users_count,
+		)
 		if err != nil {
 			log.Error("Error scanning user:", err)
-			return users, err
+			return users, 0, repo_errors.OperationError{}
 		}
 		users = append(users, user)
 	}
 
-	return users, err
+	return users, users_count, err
 }

@@ -24,7 +24,7 @@ func CreateUser(
 ) (entities.User, error) {
 	passport_data, err := getPassportDataFromString(user.PassportNumber)
 	if err != nil {
-		return entities.User{}, api_errors.BadRequestError{
+		return entities.User{}, &api_errors.BadRequestError{
 			Detail: err.Error(),
 		}
 	}
@@ -42,11 +42,11 @@ func CreateUser(
 	)
 	if err != nil {
 		if errors.Is(err, repo_errors.ObjectAlreadyExistsError{}) {
-			return entities.User{}, api_errors.BadRequestError{
+			return entities.User{}, &api_errors.BadRequestError{
 				Detail: fmt.Sprintf("User with passport number %s already exists", user.PassportNumber),
 			}
 		}
-		return entities.User{}, api_errors.InternalServerError{}
+		return entities.User{}, &api_errors.InternalServerError{}
 	}
 	user_to_create.Id = user_id
 	return user_to_create, nil
@@ -65,7 +65,7 @@ func UpdateUser(
 	if user.PassportNumber != nil {
 		passport_data, err = getPassportDataFromString(*user.PassportNumber)
 		if err != nil {
-			return entities.User{}, api_errors.BadRequestError{
+			return entities.User{}, &api_errors.BadRequestError{
 				Detail: err.Error(),
 			}
 		}
@@ -84,15 +84,15 @@ func UpdateUser(
 	)
 	if err != nil {
 		if errors.Is(err, repo_errors.ObjectAlreadyExistsError{}) {
-			return entities.User{}, api_errors.BadRequestError{
+			return entities.User{}, &api_errors.BadRequestError{
 				Detail: fmt.Sprintf("%s. userId=%d", err, user_id),
 			}
 		} else if errors.Is(err, repo_errors.ObjectNotFoundError{}) {
-			return entities.User{}, api_errors.BadRequestError{
+			return entities.User{}, &api_errors.BadRequestError{
 				Detail: fmt.Sprintf("%s. userId=%d", err, user_id),
 			}
 		}
-		return entities.User{}, api_errors.BadRequestError{Detail: err.Error()}
+		return entities.User{}, &api_errors.BadRequestError{Detail: err.Error()}
 	}
 	return updated_user, nil
 }
@@ -121,4 +121,18 @@ func getPassportDataFromString(passport_number_string string) ([]*int, error) {
 		return []*int{}, fmt.Errorf("Incorrect passportNumber format. Passport serie and passport number must be numbers, not strings")
 	}
 	return []*int{&passport_serie, &passport_number}, nil
+}
+
+func GetUsers(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	log *logrus.Logger,
+	offset int,
+	limit int,
+) ([]entities.User, int, error) {
+	users, users_count, err := repository.GetUsers(ctx, pool, log, offset, limit)
+	if err != nil {
+		return []entities.User{}, 0, api_errors.InternalServerError{}
+	}
+	return users, users_count, nil
 }

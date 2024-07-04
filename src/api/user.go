@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strconv"
 	"task_tracker/src/entities"
@@ -20,6 +21,7 @@ func InitUserRoutes(router *mux.Router, pool *pgxpool.Pool, log *logrus.Logger) 
 	router.HandleFunc("/users", CreateUser(pool, log)).Methods("POST")
 	router.HandleFunc("/users/{userId}", UpdateUser(pool, log)).Methods("PATCH")
 	router.HandleFunc("/users/{userId}", DeleteUser(pool, log)).Methods("DELETE")
+	router.HandleFunc("/users", GetUsers(pool, log)).Methods("GET")
 }
 
 func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
@@ -35,12 +37,19 @@ func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 			return
 		}
 
-		created_user, err := services.CreateUser(r.Context(), pool, log, *user_data_validated)
+		created_user, err := services.CreateUser(
+			r.Context(),
+			pool,
+			log,
+			*user_data_validated,
+		)
 		if err != nil {
 			resp := entities.ErrorResponse{Error: err.Error()}
-			if errors.Is(err, api_errors.BadRequestError{}) {
+			var bad_request_error *api_errors.BadRequestError
+
+			if errors.As(err, &bad_request_error) {
 				w.WriteHeader(http.StatusBadRequest)
-			} else if errors.Is(err, api_errors.InternalServerError{}) {
+			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 			json.NewEncoder(w).Encode(resp)
@@ -82,12 +91,20 @@ func UpdateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 			return
 		}
 
-		updated_user, err := services.UpdateUser(r.Context(), pool, log, *validated_user_data, user_id)
+		updated_user, err := services.UpdateUser(
+			r.Context(),
+			pool,
+			log,
+			*validated_user_data,
+			user_id,
+		)
 		if err != nil {
 			resp := entities.ErrorResponse{Error: err.Error()}
-			if errors.Is(err, api_errors.BadRequestError{}) {
+
+			var bad_request_error *api_errors.BadRequestError
+			if errors.As(err, &bad_request_error) {
 				w.WriteHeader(http.StatusBadRequest)
-			} else if errors.Is(err, api_errors.InternalServerError{}) {
+			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 			json.NewEncoder(w).Encode(resp)
@@ -128,5 +145,40 @@ func DeleteUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func GetUsers(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Content-Type", "application/json")
+
+		page, err := strconv.Atoi(r.URL.Query().Get("page"))
+		if err != nil {
+			page = 1
+		}
+
+		users_per_page := 5
+
+		users, users_count, err := services.GetUsers(
+			r.Context(),
+			pool,
+			log,
+			(page-1)*users_per_page,
+			users_per_page,
+		)
+		if err != nil {
+			resp := entities.ErrorResponse{Error: err.Error()}
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		response := entities.GetUsersResponse{
+			Users:    users,
+			Page:     page,
+			LastPage: int(math.Ceil(float64(users_count) / float64(users_per_page))),
+		}
+		json.NewEncoder(w).Encode(response)
 	}
 }
