@@ -25,7 +25,7 @@ func CreateUser(
 	conn, err := pool.Acquire(ctx)
 	if err != nil {
 		log.Error("Error with acquiring connection:", err)
-		return 0, err
+		return 0, repo_errors.OperationError{}
 	}
 	defer conn.Release()
 
@@ -63,7 +63,7 @@ func UpdateUser(
 	conn, err := pool.Acquire(ctx)
 	if err != nil {
 		log.Error("Error with acquiring connection:", err)
-		return entities.User{}, err
+		return entities.User{}, repo_errors.OperationError{}
 	}
 	defer conn.Release()
 
@@ -149,7 +149,7 @@ func DeleteUser(
 
 	if err != nil {
 		log.Error("Error with acquiring connection:", err)
-		return err
+		return repo_errors.OperationError{}
 	}
 	defer conn.Release()
 
@@ -179,7 +179,7 @@ func GetUsers(
 	var users []entities.User
 	if err != nil {
 		log.Error("Error with acquiring connection:", err)
-		return users, 0, err
+		return users, 0, repo_errors.OperationError{}
 	}
 	defer conn.Release()
 
@@ -221,4 +221,77 @@ func GetUsers(
 	}
 
 	return users, users_count, err
+}
+
+func GetUserActivity(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	log *logrus.Logger,
+	filters entities.UserActivityRequest,
+) ([]entities.UserActivityTask, error) {
+	conn, err := pool.Acquire(ctx)
+
+	var tasks []entities.UserActivityTask
+	if err != nil {
+		log.Error("Error with acquiring connection:", err)
+		return tasks, repo_errors.OperationError{}
+	}
+	defer conn.Release()
+
+	where_clauses := []string{}
+	args := []interface{}{}
+
+	where_clauses = append(where_clauses, "user_id=$1")
+	args = append(args, filters.UserId)
+
+	if filters.DateTo != nil && filters.DateFrom != nil {
+		where_clauses = append(where_clauses, "start_time BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ")
+		args = append(args, *filters.DateFrom)
+	} else if filters.DateFrom != nil {
+		where_clauses = append(where_clauses, "start_time>=$2::TIMESTAMPTZ")
+		args = append(args, *filters.DateFrom)
+	} else if filters.DateTo != nil {
+		where_clauses = append(where_clauses, "start_time<=$2::TIMESTAMPTZ")
+		args = append(args, *filters.DateFrom)
+	}
+
+	where_query := strings.Join(where_clauses, " AND ")
+	query := fmt.Sprintf(
+		`SELECT 
+			task_id,
+			task_name, 
+			CEIL(EXTRACT(EPOCH FROM age(end_time, start_time)) / 3600) AS hours,
+            CEIL((EXTRACT(EPOCH FROM age(end_time, start_time)) / 60) %% 60) AS minutes
+        FROM tasks
+		WHERE %s
+		ORDER BY 3 DESC;`,
+		where_query,
+	)
+
+	rows, err := conn.Query(
+		ctx,
+		query,
+		args...,
+	)
+	if err != nil {
+		log.Error("Error getting tasks:", err)
+		return tasks, repo_errors.OperationError{}
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var task entities.UserActivityTask
+		err = rows.Scan(
+			&task.TaskID,
+			&task.TaskName,
+			&task.Hours,
+			&task.Minutes,
+		)
+		if err != nil {
+			log.Error("Error scanning task:", err)
+			return tasks, repo_errors.OperationError{}
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
 }

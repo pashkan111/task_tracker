@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"task_tracker/src/errors/api_errors"
 	"task_tracker/src/services"
 	"task_tracker/src/utils"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -18,13 +20,14 @@ import (
 )
 
 func InitUserRoutes(router *mux.Router, pool *pgxpool.Pool, log *logrus.Logger) {
-	router.HandleFunc("/users", CreateUser(pool, log)).Methods("POST")
-	router.HandleFunc("/users/{userId}", UpdateUser(pool, log)).Methods("PATCH")
-	router.HandleFunc("/users/{userId}", DeleteUser(pool, log)).Methods("DELETE")
-	router.HandleFunc("/users", GetUsers(pool, log)).Methods("GET")
+	router.HandleFunc("/users", createUser(pool, log)).Methods("POST")
+	router.HandleFunc("/users/{userId}", updateUser(pool, log)).Methods("PATCH")
+	router.HandleFunc("/users/{userId}", deleteUser(pool, log)).Methods("DELETE")
+	router.HandleFunc("/users", getUsers(pool, log)).Methods("GET")
+	router.HandleFunc("/user-activities/{userId}", getUserActivities(pool, log)).Methods("GET")
 }
 
-func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
+func createUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -61,7 +64,7 @@ func CreateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 	}
 }
 
-func UpdateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
+func updateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -69,14 +72,14 @@ func UpdateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 		userID := vars["userId"]
 
 		if userID == "" {
-			resp := entities.ErrorResponse{Error: "Parametr userId is required"}
+			resp := entities.ErrorResponse{Error: api_errors.BadRequestError{Detail: "Parametr userId is required"}.Error()}
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(resp)
 			return
 		}
 		user_id, err := strconv.Atoi(userID)
 		if err != nil {
-			resp := entities.ErrorResponse{Error: "Parametr userId must be a number"}
+			resp := entities.ErrorResponse{Error: api_errors.BadRequestError{Detail: "Parametr userId must be a number"}.Error()}
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(resp)
 			return
@@ -116,7 +119,7 @@ func UpdateUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 	}
 }
 
-func DeleteUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
+func deleteUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -124,14 +127,14 @@ func DeleteUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 		userID := vars["userId"]
 
 		if userID == "" {
-			resp := entities.ErrorResponse{Error: "Parametr userId is required"}
+			resp := entities.ErrorResponse{Error: api_errors.BadRequestError{Detail: "Parametr userId is required"}.Error()}
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(resp)
 			return
 		}
 		user_id, err := strconv.Atoi(userID)
 		if err != nil {
-			resp := entities.ErrorResponse{Error: "Parametr userId must be a number"}
+			resp := entities.ErrorResponse{Error: api_errors.BadRequestError{Detail: "Parametr userId must be a number"}.Error()}
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(resp)
 			return
@@ -148,7 +151,7 @@ func DeleteUser(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 	}
 }
 
-func GetUsers(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
+func getUsers(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
@@ -180,5 +183,86 @@ func GetUsers(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 			LastPage: int(math.Ceil(float64(users_count) / float64(users_per_page))),
 		}
 		json.NewEncoder(w).Encode(response)
+	}
+}
+
+func getUserActivities(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		vars := mux.Vars(r)
+		userID := vars["userId"]
+
+		if userID == "" {
+			resp := entities.ErrorResponse{Error: api_errors.BadRequestError{Detail: "Parametr userId is required"}.Error()}
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		user_id, err := strconv.Atoi(userID)
+		if err != nil {
+			resp := entities.ErrorResponse{Error: api_errors.BadRequestError{Detail: "Parametr userId must be a number"}.Error()}
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		date_from := r.URL.Query().Get("dateFrom")
+		date_to := r.URL.Query().Get("dateTo")
+
+		date_time_format := "YYYY-MM-DD HH:MM"
+
+		var date_from_parsed *time.Time
+		var date_to_parsed *time.Time
+
+		if date_from != "" {
+			*date_from_parsed, err = time.Parse(date_from, date_time_format)
+			if err != nil {
+				resp := entities.ErrorResponse{
+					Error: api_errors.BadRequestError{
+						Detail: fmt.Sprintf("Parametr dateFrom must be a date. Format %s", date_time_format),
+					}.Error(),
+				}
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(resp)
+				return
+			}
+		}
+
+		if date_to != "" {
+			*date_to_parsed, err = time.Parse(date_to, date_time_format)
+			if err != nil {
+				resp := entities.ErrorResponse{
+					Error: api_errors.BadRequestError{
+						Detail: fmt.Sprintf("Parametr dateTo must be a date. Format %s", date_time_format),
+					}.Error(),
+				}
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(resp)
+				return
+			}
+		}
+
+		user_activity_filters := entities.UserActivityRequest{
+			UserId:   user_id,
+			DateFrom: date_from_parsed,
+			DateTo:   date_to_parsed,
+		}
+		user_activities, err := services.GetUserActivities(
+			r.Context(),
+			pool,
+			log,
+			user_activity_filters,
+		)
+		if err != nil {
+			resp := entities.ErrorResponse{Error: err.Error()}
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		resp := entities.UserActivityResponse{
+			UserId: user_id,
+			Tasks:  user_activities,
+		}
+		json.NewEncoder(w).Encode(resp)
 	}
 }

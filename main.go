@@ -21,6 +21,7 @@ func main() {
 
 	router := mux.NewRouter()
 	api.InitUserRoutes(router, postgres_pool, log)
+	api.InitTaskRoutes(router, postgres_pool, log)
 
 	fmt.Println("Server is running on port 8080")
 	srv := &http.Server{

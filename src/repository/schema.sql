@@ -12,7 +12,6 @@ CREATE TABLE tasks (
     task_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id),
     task_name VARCHAR(255) NOT NULL,
-    start_time TIMESTAMP,
-    end_time TIMESTAMP,
-    duration INTERVAL
+    start_time TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMPTZ
 );

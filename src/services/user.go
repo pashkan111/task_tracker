@@ -136,3 +136,16 @@ func GetUsers(
 	}
 	return users, users_count, nil
 }
+
+func GetUserActivities(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	log *logrus.Logger,
+	filters entities.UserActivityRequest,
+) ([]entities.UserActivityTask, error) {
+	tasks, err := repository.GetUserActivity(ctx, pool, log, filters)
+	if err != nil {
+		return []entities.UserActivityTask{}, &api_errors.InternalServerError{}
+	}
+	return tasks, nil
+}
