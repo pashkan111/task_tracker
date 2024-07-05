@@ -17,6 +17,7 @@ import (
 
 func InitTaskRoutes(router *mux.Router, pool *pgxpool.Pool, log *logrus.Logger) {
 	router.HandleFunc("/tasks", createTask(pool, log)).Methods("POST")
+	router.HandleFunc("/tasks/finish", finishTask(pool, log)).Methods("POST")
 }
 
 func createTask(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
@@ -52,5 +53,35 @@ func createTask(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
 		}
 
 		json.NewEncoder(w).Encode(created_task)
+	}
+}
+
+func finishTask(pool *pgxpool.Pool, log *logrus.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		var task_request entities.FinishTaskRequest
+		validated_request_data, err := utils.ValidateRequestData(task_request, r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			resp := entities.ErrorResponse{Error: err.Error()}
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		err = services.FinishTask(
+			r.Context(),
+			pool,
+			log,
+			validated_request_data.TaskId,
+		)
+		if err != nil {
+			resp := entities.ErrorResponse{Error: err.Error()}
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }

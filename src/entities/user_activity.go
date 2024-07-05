@@ -3,10 +3,11 @@ package entities
 import "time"
 
 type UserActivityTask struct {
-	TaskID   int    `json:"task_id"`
-	TaskName string `json:"task_name"`
-	Hours    int    `json:"hours"`
-	Minutes  int    `json:"minutes"`
+	TaskID     int    `json:"task_id"`
+	TaskName   string `json:"task_name"`
+	Hours      int    `json:"hours"`
+	Minutes    int    `json:"minutes"`
+	IsFinished bool   `json:"is_finished"`
 }
 
 type UserActivityRequest struct {

@@ -35,3 +35,18 @@ func CreateTask(
 	}
 	return created_task, nil
 }
+
+func FinishTask(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	log *logrus.Logger,
+	task_id int,
+) error {
+	err := repository.FinishTask(
+		ctx, pool, log, task_id,
+	)
+	if err != nil {
+		return &api_errors.InternalServerError{}
+	}
+	return nil
+}

@@ -53,3 +53,31 @@ func CreateTask(
 	}
 	return &created_task, nil
 }
+
+func FinishTask(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	log *logrus.Logger,
+	task_id int,
+) error {
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		log.Error("Error with acquiring connection:", err)
+		return repo_errors.OperationError{}
+	}
+	defer conn.Release()
+
+	_, err = conn.Exec(
+		ctx,
+		`UPDATE tasks 
+		SET end_time=current_timestamp
+		WHERE task_id=$1`,
+		task_id,
+	)
+
+	if err != nil {
+		log.Error("Error finishing task: ", err)
+		return repo_errors.OperationError{}
+	}
+	return nil
+}

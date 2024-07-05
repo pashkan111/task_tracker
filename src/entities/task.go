@@ -13,3 +13,7 @@ type CreateTaskResponse struct {
 	UserId    int       `json:"userId"`
 	CreatedAt time.Time `json:"createdAt"`
 }
+
+type FinishTaskRequest struct {
+	TaskId int `json:"taskId" validate:"required"`
+}

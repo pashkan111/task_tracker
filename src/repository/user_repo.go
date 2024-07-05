@@ -260,8 +260,12 @@ func GetUserActivity(
 		`SELECT 
 			task_id,
 			task_name, 
-			CEIL(EXTRACT(EPOCH FROM age(end_time, start_time)) / 3600) AS hours,
-            CEIL((EXTRACT(EPOCH FROM age(end_time, start_time)) / 60) %% 60) AS minutes
+			CEIL(EXTRACT(EPOCH FROM age(COALESCE(end_time, current_timestamp), start_time)) / 3600) AS hours,
+    		CEIL((EXTRACT(EPOCH FROM age(COALESCE(end_time, current_timestamp), start_time)) / 60) %% 60) AS minutes,
+			CASE 
+        		WHEN end_time IS NOT NULL THEN true 
+        		ELSE false 
+    		END AS is_finished
         FROM tasks
 		WHERE %s
 		ORDER BY 3 DESC;`,
@@ -286,6 +290,7 @@ func GetUserActivity(
 			&task.TaskName,
 			&task.Hours,
 			&task.Minutes,
+			&task.IsFinished,
 		)
 		if err != nil {
 			log.Error("Error scanning task:", err)
